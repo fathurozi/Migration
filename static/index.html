@@ -165,7 +165,7 @@ dialog h3{margin-bottom:8px;font-size:15px}dialog p{white-space:pre-line;color:#
       <button data-p="ordered"><span class="ic">◎</span>Ordered</button>
       <button data-p="tutorial"><span class="ic">?</span>Tutorial</button>
     </nav>
-    <div class="ver" id="ver">Open Cloud v2</div>
+    <div class="ver" id="ver"></div>
   </aside>
 
   <main>
@@ -609,7 +609,7 @@ function renderTutorial(items) {
 }
 loadSettings(); refresh(); ordLabel();
 api("/api/config").then(r => r.json()).then(c => {
-  CFG = c; $("ver").textContent = `v${c.version}  •  Open Cloud v2`; $("ret").textContent = c.retention_hours;
+  CFG = c; $("ver").textContent = `v${c.version} `; $("ret").textContent = c.retention_hours;
   renderTutorial(c.tutorial);
   $("workers").max = c.max_workers; $("rate").max = c.max_rate;
 }).catch(() => { toast("Tidak bisa terhubung ke server API.", "err"); });
