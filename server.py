@@ -27,7 +27,7 @@ from starlette.background import BackgroundTask
 import engine
 
 APP_NAME = "Migration DS By WP"
-APP_VER = "web-1.0"
+APP_VER = "1.0"
 
 # ----------------------------------------------------------------- konfigurasi (env)
 DATA_DIR = os.environ.get("DATA_DIR") or os.path.join(tempfile.gettempdir(), "rbx_migrator")
