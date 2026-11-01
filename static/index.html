@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Migration DS By WP</title>
+<link rel="icon" href="favicon.png">
+<meta name="theme-color" content="#0a0d14">
+<style>
+:root{
+  --bg:#0a0d14; --card:rgba(21,27,47,.82); --card-solid:#151b2f; --field:#1e2643; --line:#2d3860;
+  --text:#eef1fb; --mute:#8d96b5; --acc:#7b6cff; --acc-h:#6a5af0; --acc-soft:#262250;
+  --ok:#34d399; --warn:#fbbf24; --err:#f87171; --info:#38bdf8; --r:16px;
+  --font:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{font:13px/1.45 var(--font);color:var(--text);background:var(--bg);overflow-x:hidden}
+body::before{ /* latar: gradien + cahaya warna */
+  content:"";position:fixed;inset:0;z-index:-2;
+  background:
+    radial-gradient(60% 55% at 85% -5%,#3a2c80 0%,transparent 70%),
+    radial-gradient(55% 60% at 5% 105%,#123e70 0%,transparent 70%),
+    radial-gradient(45% 45% at 90% 95%,#28185a 0%,transparent 70%),#090c14;
+}
+body::after{ /* logo WP besar di tengah, diburamkan */
+  content:"";position:fixed;z-index:-1;left:50%;top:60%;width:min(60vw,640px);aspect-ratio:2.1/1;
+  transform:translate(-50%,-50%);background:url(logo.png) center/contain no-repeat;
+  opacity:.22;filter:blur(1.5px) drop-shadow(0 0 40px rgba(150,170,255,.45));pointer-events:none;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:200px 1fr;gap:16px;padding:16px;min-height:100%}
+/* kartu kaca */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);padding:14px 18px 16px;min-width:0}
+.card h3{font-size:14px;font-weight:700;letter-spacing:.2px}
+.card .sub{font-size:11px;color:var(--mute);margin-left:8px;font-weight:400}
+.card .desc{font-size:11px;color:var(--mute);margin:3px 0 8px}
+/* sidebar */
+.side{position:sticky;top:16px;align-self:start;height:calc(100vh - 32px);border-radius:20px;display:flex;flex-direction:column;padding:26px 14px 18px}
+.brand{text-align:center;margin-bottom:22px}
+.brand img{width:150px;max-width:100%;display:block;margin:0 auto 8px}
+.brand b{display:block;font-size:14px}.brand small{color:var(--mute);font-size:11px}
+.nav{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:14px}
+.nav button{display:flex;align-items:center;gap:12px;height:42px;padding:0 16px;border:0;border-radius:12px;background:transparent;color:var(--mute);font-weight:700;cursor:pointer;text-align:left;transition:background .15s,color .15s}
+.nav button:hover{background:var(--field)}
+.nav button.on{background:var(--acc-soft);color:var(--acc)}
+.nav .ic{width:16px;text-align:center}
+.side .ver{margin-top:auto;text-align:center;color:var(--mute);font-size:11px}
+/* header */
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 2px 12px}
+.head h1{font-size:22px;font-weight:800;line-height:1.2}
+.head p{color:var(--mute);font-size:12px;margin-top:2px}
+.pill{padding:6px 18px;border-radius:999px;font-weight:700;font-size:12px;background:var(--acc-soft);color:var(--acc);white-space:nowrap;transition:background .2s,color .2s}
+.pill.run{background:var(--acc);color:#fff}.pill.info{background:var(--info);color:#fff}
+.pill.ok{background:var(--ok);color:#14160f}.pill.warn{background:var(--warn);color:#14160f}
+.page{display:none;animation:fade .18s ease}.page.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+/* grid migrasi */
+.row-top{display:grid;grid-template-columns:1fr 56px 1fr;align-items:center;margin-bottom:14px}
+.row-top .arrow{text-align:center;font-size:26px;font-weight:700;color:var(--mute)}
+.row-top.busy .arrow{color:var(--acc);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35;transform:translateX(4px)}}
+.cols{display:grid;grid-template-columns:1fr 56px 1fr;gap:0;align-items:start}
+.cols>.l{grid-column:1}.cols>.r{grid-column:3}
+.stack{display:flex;flex-direction:column;gap:14px}
+.stack.r{gap:8px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--mute);margin-left:auto;transition:background .2s}
+.dot.ready{background:var(--ok)}
+.chead{display:flex;align-items:center;gap:0}
+/* form */
+label.f{display:block;margin-top:10px;font-size:11px;color:var(--mute)}
+.inp{display:flex;gap:8px;margin-top:4px}
+input[type=text],input[type=password],input[type=number],textarea,select{width:100%;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:9px 11px;outline:none;transition:border-color .15s,box-shadow .15s}
+input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(123,108,255,.18)}
+input::placeholder,textarea::placeholder{color:#5f6a8c}
+textarea{resize:vertical;min-height:64px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.btn{height:38px;padding:0 16px;border:0;border-radius:12px;font-weight:700;cursor:pointer;background:var(--field);color:var(--text);transition:background .15s,transform .05s,opacity .15s;white-space:nowrap}
+.btn:hover:not(:disabled){background:var(--line)}.btn:active:not(:disabled){transform:scale(.98)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.pri{background:var(--acc);color:#fff}.btn.pri:hover:not(:disabled){background:var(--acc-h)}
+.btn.soft{background:var(--acc-soft);color:var(--acc)}.btn.soft:hover:not(:disabled){background:#33306a}
+.btn.dan{background:var(--err);color:#fff}.btn.dan:hover:not(:disabled){background:#d94343}
+.btn.sm{height:26px;padding:0 12px;border-radius:8px;font-size:11px;color:var(--mute)}
+.seg{display:flex;background:var(--field);border-radius:12px;padding:3px;margin:10px 0 12px}
+.seg button{flex:1;height:32px;border:0;border-radius:10px;background:transparent;font-weight:700;cursor:pointer;color:var(--text)}
+.seg button.on{background:var(--acc);color:#fff}
+.sw{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;margin:6px 0}
+.sw input{display:none}
+.sw i{width:34px;height:18px;border-radius:9px;background:#2a3358;position:relative;transition:background .2s;flex:none}
+.sw i::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#dfe3f3;transition:transform .2s}
+.sw input:checked+i{background:var(--acc)}.sw input:checked+i::after{transform:translateX(16px)}
+.banner{border-radius:10px;padding:6px 12px;font-weight:700;font-size:12px;text-align:center}
+.banner.dry{background:#2b2410;color:var(--warn)}.banner.ow{background:#331719;color:var(--err)}.banner.wr{background:#112a20;color:var(--ok)}
+.acts{display:grid;grid-template-columns:5fr 5fr 6fr 4fr;gap:6px;padding:10px}
+/* progres */
+.prog{display:flex;gap:18px;align-items:center}
+.ring{position:relative;width:116px;height:116px;flex:none}
+.ring svg{transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:10;stroke-linecap:round}
+.ring .tr{stroke:var(--field)}.ring .fg{stroke:var(--acc);transition:stroke-dashoffset .3s,stroke .3s}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:20px}
+.pinfo{flex:1;min-width:0}
+.pinfo .ph{color:var(--acc);font-weight:700;font-size:14px}
+.bar{height:4px;border-radius:2px;background:var(--field);margin:3px 0 7px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--info);transition:width .3s}
+.mut{color:var(--mute);font-size:11px}
+.tiles{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:12px}
+.tile{background:var(--field);border-radius:10px;text-align:center;padding:8px 2px 7px;position:relative}
+.tile::before{content:"";display:block;height:3px;border-radius:2px;margin:0 12px 4px;background:var(--c)}
+.tile b{display:block;font-size:17px}.tile span{font-size:10px;color:var(--mute)}
+/* log */
+.log{display:flex;flex-direction:column}
+.log .lh{display:flex;align-items:center;gap:6px;margin-bottom:8px}.log .lh h3{margin-right:auto}
+#log{background:#0d111d;border-radius:10px;padding:10px 12px;height:260px;overflow:auto;font:12px/1.5 Consolas,"SF Mono",Menlo,monospace;white-space:pre-wrap;word-break:break-word}
+#log div.ok{color:var(--ok)}#log div.warn{color:var(--warn)}#log div.err{color:var(--err)}#log div.info{color:#cfd6ee}#log div.dim{color:var(--mute)}
+/* ordered */
+.top3{display:grid;grid-template-columns:1fr 1px 1fr 1px 1fr;gap:0 28px}
+.top3 .vl{background:var(--line)}
+.sep{height:1px;background:var(--line);margin:14px 0}
+.drow{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.olist{margin-top:8px;max-height:46vh;min-height:160px;overflow:auto}
+.orow{display:flex;align-items:center;gap:10px;background:var(--field);border-radius:10px;padding:8px 12px;margin:5px 0}
+.orow input{accent-color:var(--acc);width:17px;height:17px}.orow .n{font-weight:600;word-break:break-all}.orow .s{margin-left:auto;color:var(--mute);font-size:11px;text-align:right}
+.empty{text-align:center;color:var(--mute);padding:36px 10px;white-space:pre-line}
+.drop{border:1px dashed var(--line);border-radius:12px;padding:10px;text-align:center;color:var(--mute);font-size:11px;margin-bottom:8px;transition:border-color .15s,background .15s}
+.drop.over{border-color:var(--acc);background:rgba(123,108,255,.1)}
+/* tutorial */
+.tut h4{color:var(--acc);margin:16px 0 4px;font-size:13px}.tut h4:first-child{margin-top:0}
+.tut p{white-space:pre-wrap;color:#dfe4f6}
+.tut a{color:var(--info)}
+/* toast */
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:#1b2340;border:1px solid var(--line);border-radius:12px;padding:10px 18px;opacity:0;pointer-events:none;transition:all .25s;max-width:90vw;z-index:50;font-weight:600}
+#toast.show{opacity:1;transform:translateX(-50%)}
+#toast.err{border-color:var(--err);color:var(--err)}#toast.ok{border-color:var(--ok);color:var(--ok)}
+dialog{background:var(--card-solid);color:var(--text);border:1px solid var(--line);border-radius:16px;padding:20px 22px;max-width:min(92vw,460px)}
+dialog::backdrop{background:rgba(5,7,12,.65);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+dialog h3{margin-bottom:8px;font-size:15px}dialog p{white-space:pre-line;color:#dfe4f6}dialog .bt{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+/* responsif */
+@media(max-width:1000px){
+  .top3{grid-template-columns:1fr;gap:18px}.top3 .vl{display:none}
+  .cols,.row-top{grid-template-columns:1fr}.cols>.l,.cols>.r{grid-column:1}.row-top .arrow{transform:rotate(90deg);padding:4px 0}
+  .cols{gap:14px}
+}
+@media(max-width:760px){
+  .app{grid-template-columns:1fr;padding:10px;gap:10px}
+  .side{position:static;height:auto;flex-direction:row;align-items:center;padding:8px;border-radius:16px;gap:8px}
+  .brand{display:none}.nav{flex-direction:row;border:0;padding:0;flex:1;gap:4px}.nav button{flex:1;justify-content:center;padding:0 6px;height:38px;gap:6px}
+  .side .ver{display:none}
+  .head h1{font-size:18px}.g3,.g2{grid-template-columns:1fr}.acts{grid-template-columns:1fr 1fr}
+  .tiles{grid-template-columns:repeat(3,1fr)}.prog{flex-direction:column;align-items:stretch}.ring{margin:0 auto}
+  body::after{width:90vw;opacity:.16}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="card side">
+    <div class="brand"><img src="logo.png" alt="WP"><b>Migration DS</b><small>By WP</small></div>
+    <nav class="nav" id="nav">
+      <button data-p="migrate" class="on"><span class="ic">⇄</span>Migrasi</button>
+      <button data-p="ordered"><span class="ic">◎</span>Ordered</button>
+      <button data-p="tutorial"><span class="ic">?</span>Tutorial</button>
+    </nav>
+    <div class="ver" id="ver">Open Cloud v2</div>
+  </aside>
+
+  <main>
+    <div class="head">
+      <div><h1>Migration DS By WP</h1><p id="subt"></p></div>
+      <div class="pill" id="pill">Siap</div>
+    </div>
+
+    <!-- ===================== MIGRASI ===================== -->
+    <section class="page on" id="p-migrate">
+      <div class="row-top" id="route">
+        <div class="card">
+          <div class="chead"><h3>Sumber</h3><span class="sub">Experience lama</span><i class="dot" id="dot-src"></i></div>
+          <div class="g2" style="margin-top:2px">
+            <div style="grid-column:1/-1"><label class="f">API Key sumber</label>
+              <div class="inp"><input id="src_key" type="password" placeholder="Tempel API Key..." autocomplete="off" spellcheck="false">
+              <button class="btn sm" type="button" data-eye="src_key" style="height:38px">Lihat</button></div></div>
+            <div style="grid-column:1/-1"><label class="f">Universe ID sumber</label>
+              <input id="src_uni" type="text" inputmode="numeric" placeholder="mis. 1234567890" autocomplete="off"></div>
+          </div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="card">
+          <div class="chead"><h3>Tujuan</h3><span class="sub">Experience baru</span><i class="dot" id="dot-dst"></i></div>
+          <div class="g2" style="margin-top:2px">
+            <div style="grid-column:1/-1"><label class="f">API Key tujuan</label>
+              <div class="inp"><input id="dst_key" type="password" placeholder="Tempel API Key..." autocomplete="off" spellcheck="false">
+              <button class="btn sm" type="button" data-eye="dst_key" style="height:38px">Lihat</button></div></div>
+            <div style="grid-column:1/-1"><label class="f">Universe ID tujuan</label>
+              <input id="dst_uni" type="text" inputmode="numeric" placeholder="mis. 9876543210" autocomplete="off"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cols">
+        <div class="l stack">
+          <div class="card">
+            <h3>Mode &amp; opsi</h3>
+            <div class="seg" id="seg">
+              <button data-m="auto" class="on">Otomatis Penuh</button><button data-m="standard">Standard</button><button data-m="ordered">Ordered</button>
+            </div>
+            <div class="g2">
+              <label class="sw"><input type="checkbox" id="dry" checked><i></i>Dry run (simulasi)</label>
+              <label class="sw"><input type="checkbox" id="verify" checked><i></i>Verifikasi hasil</label>
+              <label class="sw"><input type="checkbox" id="overwrite"><i></i>Overwrite</label>
+              <label class="sw"><input type="checkbox" id="fresh"><i></i>Salin ulang semua</label>
+            </div>
+            <div class="g3" style="margin-top:6px">
+              <div><label class="f">Worker paralel</label><input id="workers" type="number" min="1" value="4"></div>
+              <div><label class="f">Maks req/detik</label><input id="rate" type="number" min="0.5" step="0.5" value="6"></div>
+              <div><label class="f">Limit key (0=semua)</label><input id="limit" type="number" min="0" value="0"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="chead"><h3>Opsi lanjutan</h3><span class="sub">Filter &amp; nama tujuan (opsional)</span></div>
+            <button class="btn" id="advBtn" style="margin-top:10px">Tampilkan</button>
+            <div id="adv" hidden>
+              <label class="f">Hanya DataStore ini (pisah koma)</label><input id="only" type="text" placeholder="kosong = semua" autocomplete="off">
+              <label class="f">Lewati DataStore yang namanya mengandung</label><input id="skip" type="text" placeholder="mis. test, backup" autocomplete="off">
+              <label class="f">Nama DataStore tujuan (hanya jika 1 DataStore)</label><input id="dst_ds" type="text" placeholder="kosong = sama" autocomplete="off">
+            </div>
+          </div>
+        </div>
+
+        <div class="r stack r">
+          <div class="banner dry" id="banner"></div>
+          <div class="card acts" style="padding:10px">
+            <button class="btn" id="bTest">Tes Koneksi</button>
+            <button class="btn" id="bCheck">Cek Tujuan</button>
+            <button class="btn pri" id="bRun">▶&nbsp; Mulai</button>
+            <button class="btn dan" id="bStop" disabled>■&nbsp; Stop</button>
+          </div>
+          <div class="card">
+            <div class="prog">
+              <div class="ring"><svg width="116" height="116" viewBox="0 0 116 116"><circle class="tr" cx="58" cy="58" r="50"/><circle class="fg" id="ringfg" cx="58" cy="58" r="50" stroke-dasharray="314.16" stroke-dashoffset="314.16"/></svg><b id="pct">0%</b></div>
+              <div class="pinfo">
+                <div class="ph" id="phase">Fase: -</div>
+                <div id="count" style="margin-top:2px">0 / 0 item</div>
+                <div class="mut" id="dsname" style="margin-top:6px">DataStore: -</div>
+                <div class="bar"><i id="dsbar"></i></div>
+                <div id="status" style="font-size:11px">Siap.</div>
+                <div class="mut" id="eta" style="margin-top:2px">Berjalan: - • Sisa: - • Kecepatan: -</div>
+              </div>
+            </div>
+            <div class="tiles">
+              <div class="tile" style="--c:var(--ok)"><b id="t-migrated">0</b><span>Tertulis</span></div>
+              <div class="tile" style="--c:var(--acc)"><b id="t-dry">0</b><span>Simulasi</span></div>
+              <div class="tile" style="--c:var(--info)"><b id="t-exists">0</b><span>Sudah ada</span></div>
+              <div class="tile" style="--c:var(--mute)"><b id="t-resumed">0</b><span>Resume</span></div>
+              <div class="tile" style="--c:var(--warn)"><b id="t-missing">0</b><span>Hilang</span></div>
+              <div class="tile" style="--c:var(--err)"><b id="t-failed">0</b><span>Gagal</span></div>
+            </div>
+          </div>
+          <div class="card log">
+            <div class="lh"><h3>Log</h3>
+              <button class="btn sm" id="bClear">Bersihkan</button><button class="btn sm" id="bSave">Simpan</button><button class="btn sm" id="bDown">Unduh hasil</button></div>
+            <div id="log" aria-live="polite"></div>
+            <div class="mut" style="margin-top:8px">Data hasil disimpan sementara di server (<span id="ret">3</span> jam) lalu terhapus otomatis. <a href="#" id="bWipe" style="color:var(--info)">Hapus data saya sekarang</a></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== ORDERED ===================== -->
+    <section class="page" id="p-ordered">
+      <div class="card">
+        <div class="top3">
+          <div>
+            <h3>1 • Scan file game</h3>
+            <p class="desc">Paling akurat. Membaca GetOrderedDataStore("nama","scope") dari .rbxl/.rbxlx/.lua (file lama / autosave boleh).</p>
+            <div class="drop" id="drop">Tarik file ke sini</div>
+            <div class="g2"><button class="btn soft" id="bFile">Pilih file...</button><button class="btn soft" id="bDir">Pilih folder...</button></div>
+            <input type="file" id="fFile" multiple hidden accept=".rbxl,.rbxm,.rbxlx,.rbxmx,.lua,.luau,.txt">
+            <input type="file" id="fDir" hidden webkitdirectory>
+            <div class="mut" id="scanres" style="margin-top:8px">Belum ada hasil scan.</div>
+          </div>
+          <div class="vl"></div>
+          <div>
+            <h3>2 • Auto-probe</h3>
+            <p class="desc">Coba ~130 nama umum + nama Standard + scope yang terlihat.</p>
+            <label class="sw"><input type="checkbox" id="auto_probe" checked><i></i>Auto-probe saat Mulai</label>
+            <label class="f">Scope yang dicoba (pisah koma)</label><input id="scopes" type="text" value="global" autocomplete="off">
+          </div>
+          <div class="vl"></div>
+          <div>
+            <h3>3 • Pola &amp; manual</h3>
+            <p class="desc">Pola: Top_{1-30}. Manual: nama atau nama:scope.</p>
+            <label class="f" style="margin-top:0">Pola nama dinamis</label><input id="patterns" type="text" placeholder="mis. Top_{1-30}" autocomplete="off">
+            <label class="f">Nama manual (selalu dimigrasi)</label><textarea id="manual" rows="2" spellcheck="false"></textarea>
+          </div>
+        </div>
+        <div class="sep"></div>
+        <div class="drow"><button class="btn pri" id="bDisc">◎&nbsp; Cari Ordered sekarang</button>
+          <span class="mut">Opsional. Hasil muncul di daftar bawah dan bisa di-uncheck. Tanpa ini, probe tetap jalan saat Mulai.</span></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div class="chead"><h3>Ordered terdeteksi</h3><button class="btn sm" id="bOrdClear" style="margin-left:auto">Hapus semua</button></div>
+        <div class="mut" id="ordcount" style="margin-top:4px">0 DataStore/scope</div>
+        <div class="olist" id="olist"><div class="empty" id="oempty">Belum ada Ordered DataStore.
+Scan file game atau klik “Cari Ordered sekarang”.</div></div>
+      </div>
+    </section>
+
+    <!-- ===================== TUTORIAL ===================== -->
+    <section class="page" id="p-tutorial"><div class="card tut" id="tut"></div></section>
+  </main>
+</div>
+
+<div id="toast"></div>
+<dialog id="dlg"><h3 id="dTitle"></h3><p id="dBody"></p><div class="bt" id="dBtns"></div></dialog>
+
+<script src="config.js"></script>
+<script>
+"use strict";
+const API = (window.API_BASE || "").replace(/\/$/, "");
+const $ = id => document.getElementById(id);
+const TITLES = {migrate:["Migrasi","Pindahkan Standard + Ordered DataStore antar experience, otomatis."],
+  ordered:["Ordered DataStore","Temukan Ordered DataStore otomatis (scan, probe, pola, manual)."],
+  tutorial:["Tutorial","Cara membuat API Key dan memakai aplikasi."]};
+const MODE_NAMES = {auto:"Otomatis Penuh",standard:"Standard",ordered:"Ordered"};
+
+/* ---------- workspace (anonim, hanya di browser ini) ---------- */
+let WS = localStorage.getItem("rbx_ws");
+if (!/^[a-f0-9]{32}$/.test(WS || "")) {
+  WS = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, "0")).join("");
+  localStorage.setItem("rbx_ws", WS);
+}
+async function api(path, opt = {}) {
+  const h = Object.assign({"X-Workspace": WS}, opt.headers || {});
+  if (opt.json) { h["Content-Type"] = "application/json"; opt.body = JSON.stringify(opt.json); }
+  const r = await fetch(API + path, {method: opt.method || "GET", headers: h, body: opt.body});
+  if (!r.ok) {
+    let m = r.statusText;
+    try { const d = await r.json(); m = typeof d.detail === "string" ? d.detail : (d.detail ? d.detail.map(x => x.msg).join("; ") : m); } catch (e) {}
+    const err = new Error(m); err.status = r.status; throw err;
+  }
+  return r;
+}
+
+/* ---------- util UI ---------- */
+function toast(msg, kind) {
+  const t = $("toast"); t.textContent = msg; t.className = "show " + (kind || "");
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.className = "", 3800);
+}
+function dialog(title, body, buttons) {
+  return new Promise(res => {
+    $("dTitle").textContent = title; $("dBody").textContent = body;
+    const bt = $("dBtns"); bt.innerHTML = "";
+    buttons.forEach(([label, val, cls]) => {
+      const b = document.createElement("button"); b.className = "btn " + (cls || ""); b.textContent = label;
+      b.onclick = () => { $("dlg").close(); res(val); }; bt.appendChild(b);
+    });
+    $("dlg").oncancel = () => res(false);
+    $("dlg").showModal();
+  });
+}
+const fmtTime = s => { if (s == null) return "-"; s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), d = s % 60; return h ? `${h}j ${m}m ${d}d` : `${m}m ${d}d`; };
+function setPill(text, cls) { const p = $("pill"); p.textContent = text; p.className = "pill " + (cls || ""); }
+
+/* ---------- navigasi ---------- */
+function showPage(k) {
+  document.querySelectorAll(".page").forEach(p => p.classList.toggle("on", p.id === "p-" + k));
+  document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.p === k));
+  $("subt").textContent = TITLES[k][0] + "  •  " + TITLES[k][1];
+  scrollTo({top: 0});
+}
+$("nav").addEventListener("click", e => { const b = e.target.closest("button"); if (b) showPage(b.dataset.p); });
+showPage("migrate");
+
+/* ---------- form state ---------- */
+let mode = "auto", probed = false, prefixes = [], running = false;
+$("seg").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  mode = b.dataset.m; document.querySelectorAll("#seg button").forEach(x => x.classList.toggle("on", x === b)); saveSettings();
+});
+document.querySelectorAll("[data-eye]").forEach(b => b.onclick = () => {
+  const i = $(b.dataset.eye); const show = i.type === "password"; i.type = show ? "text" : "password"; b.textContent = show ? "Sembunyi" : "Lihat";
+});
+$("advBtn").onclick = () => { const h = $("adv").hidden; $("adv").hidden = !h; $("advBtn").textContent = h ? "Sembunyikan" : "Tampilkan"; };
+
+const SAVE_TEXT = ["src_uni","dst_uni","workers","rate","limit","only","skip","dst_ds","scopes","patterns","manual"];
+const SAVE_BOOL = ["dry","verify","overwrite","fresh","auto_probe"];   // API Key TIDAK pernah disimpan
+function saveSettings() {
+  try {
+    const d = {mode}; SAVE_TEXT.forEach(k => d[k] = $(k).value); SAVE_BOOL.forEach(k => d[k] = $(k).checked);
+    localStorage.setItem("rbx_settings", JSON.stringify(d));
+  } catch (e) {}
+}
+function loadSettings() {
+  try {
+    const d = JSON.parse(localStorage.getItem("rbx_settings") || "{}");
+    SAVE_TEXT.forEach(k => { if (typeof d[k] === "string") $(k).value = d[k]; });
+    SAVE_BOOL.forEach(k => { if (typeof d[k] === "boolean") $(k).checked = d[k]; });
+    if (MODE_NAMES[d.mode]) { mode = d.mode; document.querySelectorAll("#seg button").forEach(b => b.classList.toggle("on", b.dataset.m === mode)); }
+    if (d.only || d.skip || d.dst_ds) $("advBtn").click();
+  } catch (e) {}
+}
+function refresh() {
+  const dry = $("dry").checked, ow = $("overwrite").checked, b = $("banner");
+  if (dry) { b.className = "banner dry"; b.textContent = "●  Simulasi: data hanya dibaca, tidak ditulis ke tujuan"; }
+  else if (ow) { b.className = "banner ow"; b.textContent = "●  Tulis + Overwrite: data yang sudah ada di tujuan akan ditimpa"; }
+  else { b.className = "banner wr"; b.textContent = "●  Mode tulis: data akan ditulis ke experience tujuan"; }
+  const ready = (k, u) => $(k).value.trim() && /^\d+$/.test($(u).value.trim());
+  $("dot-src").classList.toggle("ready", !!ready("src_key", "src_uni"));
+  $("dot-dst").classList.toggle("ready", !!ready("dst_key", "dst_uni"));
+}
+document.querySelectorAll("input,textarea").forEach(el => el.addEventListener("input", () => { refresh(); saveSettings(); }));
+document.querySelectorAll("input[type=checkbox]").forEach(el => el.addEventListener("change", () => { refresh(); saveSettings(); }));
+
+/* ---------- log ---------- */
+const LOGMAX = 2000;
+function writeLog(msg, lvl) {
+  const box = $("log"), stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+  const d = document.createElement("div"); d.className = lvl || "info";
+  d.textContent = new Date().toLocaleTimeString("id-ID", {hour12: false}) + "  " + msg; box.appendChild(d);
+  while (box.childElementCount > LOGMAX) box.firstChild.remove();
+  if (stick) box.scrollTop = box.scrollHeight;
+}
+$("bClear").onclick = () => $("log").replaceChildren();
+$("bSave").onclick = () => {
+  const txt = Array.from($("log").children, d => d.textContent).join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([txt], {type: "text/plain"}));
+  a.download = "migration_log.txt"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+$("bDown").onclick = async () => {
+  try {
+    const r = await api("/api/results"); const blob = await r.blob();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "migration_output.zip"; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch (e) { toast(e.message, "err"); }
+};
+$("bWipe").onclick = async e => {
+  e.preventDefault();
+  if (!(await dialog("Hapus data saya", "Semua backup & progress (resume) di server untuk browser ini akan dihapus. Lanjutkan?", [["Batal", false], ["Hapus", true, "dan"]]))) return;
+  try { await api("/api/results", {method: "DELETE"}); toast("Data di server sudah dihapus.", "ok"); } catch (err) { toast(err.message, "err"); }
+};
+
+/* ---------- progres ---------- */
+const CIRC = 2 * Math.PI * 50;
+function setRing(f, color) {
+  f = Math.max(0, Math.min(1, f)); const c = $("ringfg");
+  c.style.strokeDashoffset = CIRC * (1 - f); c.style.stroke = color || "";
+  $("pct").textContent = Math.round(f * 100) + "%";
+}
+function onState(s) {
+  const d = s.done, t = s.total, st = s.stats;
+  setRing(t ? d / t : 0);
+  $("count").textContent = `${d} / ${t} item`;
+  if (s.msg) $("status").textContent = s.msg;
+  for (const k of ["migrated","dry","exists","resumed","missing","failed"]) $("t-" + k).textContent = st[k];
+  const sp = s.speed ? s.speed.toFixed(1) + "/dtk" : "-";
+  $("eta").textContent = `Berjalan: ${fmtTime(s.elapsed)} • Sisa: ~${fmtTime(s.eta)} • Kecepatan: ${sp}`;
+}
+function resetProgress() {
+  setRing(0); $("dsbar").style.width = "0"; $("count").textContent = "0 / 0 item"; $("phase").textContent = "Fase: -";
+  $("dsname").textContent = "DataStore: -"; for (const k of ["migrated","dry","exists","resumed","missing","failed"]) $("t-" + k).textContent = "0";
+}
+
+/* ---------- ordered list ---------- */
+const ordItems = new Map();
+function ordLabel() {
+  const n = [...ordItems.values()].filter(v => v.cb.checked).length;
+  $("ordcount").textContent = ordItems.size ? `${n} dipilih dari ${ordItems.size} DataStore/scope` : "0 DataStore/scope";
+  $("oempty").style.display = ordItems.size ? "none" : "";
+}
+function ordAdd(ds, sc, src) {
+  const key = ds + "\u0000" + sc; if (ordItems.has(key)) return;
+  const row = document.createElement("div"); row.className = "orow";
+  const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = true; cb.onchange = ordLabel;
+  const n = document.createElement("span"); n.className = "n"; n.textContent = ds;
+  const s = document.createElement("span"); s.className = "s"; s.textContent = `${sc} • ${src}`;
+  row.append(cb, n, s); $("olist").appendChild(row); ordItems.set(key, {ds, sc, row, cb}); ordLabel();
+}
+$("bOrdClear").onclick = () => { ordItems.forEach(v => v.row.remove()); ordItems.clear(); ordLabel(); };
+
+/* ---------- scan file ---------- */
+let CFG = {max_upload_files: 6, max_upload_mb: 50};
+const SCAN_EXT = /\.(rbxl|rbxm|rbxlx|rbxmx|lua|luau|txt)$/i;
+async function scanFiles(list) {
+  const files = [...list].filter(f => SCAN_EXT.test(f.name));
+  if (!files.length) { toast("Tidak ada file .rbxl/.rbxlx/.lua yang cocok.", "err"); return; }
+  const big = files.find(f => f.size > CFG.max_upload_mb * 1048576);
+  if (big) { toast(`${big.name} lebih dari ${CFG.max_upload_mb} MB.`, "err"); return; }
+  $("scanres").textContent = "Memindai...";
+  let nT = 0, nP = 0, dyn = 0, nF = 0; const skipped = [];
+  try {
+    for (let i = 0; i < files.length; i += CFG.max_upload_files) {
+      const fd = new FormData(); files.slice(i, i + CFG.max_upload_files).forEach(f => fd.append("files", f, f.name));
+      const d = await (await api("/api/scan", {method: "POST", body: fd})).json();
+      d.targets.forEach(([n, sc]) => { ordAdd(n, sc, "scan file"); }); nT += d.targets.length;
+      prefixes = [...new Set([...prefixes, ...d.prefixes])].sort(); nP += d.prefixes.length;
+      dyn += d.dynamic; nF += d.files; skipped.push(...d.skipped);
+    }
+  } catch (e) { $("scanres").textContent = "Scan gagal."; toast(e.message, "err"); return; }
+  $("scanres").textContent = `Scan ${nF} file: ${nT} Ordered DataStore, ${nP} awalan dinamis.`;
+  writeLog(`Scan ${nF} file: ${nT} Ordered DataStore ditemukan.`, nT ? "ok" : "warn");
+  if (prefixes.length) writeLog("Awalan nama dinamis terdeteksi: " + prefixes.join(", ") + " (akan di-probe otomatis).", "info");
+  if (dyn) writeLog(`${dyn} pemanggilan GetOrderedDataStore memakai nama/scope dinamis. Auto-probe & pola membantu; sisanya tambahkan manual.`, "warn");
+  skipped.forEach(s => writeLog(`Dilewati (tidak terbaca): ${s}. Simpan sebagai .rbxlx di Studio.`, "warn"));
+  if (!nT && !nP) toast("Tidak ada GetOrderedDataStore(\"nama\") yang bisa dibaca. Auto-probe dan nama manual tetap bisa dipakai.");
+}
+$("bFile").onclick = () => $("fFile").click(); $("bDir").onclick = () => $("fDir").click();
+$("fFile").onchange = e => { scanFiles(e.target.files); e.target.value = ""; };
+$("fDir").onchange = e => { scanFiles(e.target.files); e.target.value = ""; };
+const drop = $("drop");
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => scanFiles(e.dataTransfer.files));
+
+/* ---------- menjalankan pekerjaan ---------- */
+let job = null, after = 0, pollTimer = null, lastDry = true, pollFail = 0;
+function busy(on) {
+  running = on;
+  ["bTest","bCheck","bRun","bDisc"].forEach(id => $(id).disabled = on);
+  $("bStop").disabled = !on; $("route").classList.toggle("busy", on);
+}
+function payload(action) {
+  const v = k => $(k).value.trim();
+  return {action, src_key: v("src_key"), dst_key: v("dst_key"), src_uni: v("src_uni"), dst_uni: v("dst_uni"), mode,
+    dst_ds: v("dst_ds"), only: v("only"), skip: v("skip"), dry: $("dry").checked, overwrite: $("overwrite").checked,
+    fresh: $("fresh").checked, verify: $("verify").checked, limit: parseInt(v("limit")) || 0,
+    workers: Math.min(CFG.max_workers || 8, Math.max(1, parseInt(v("workers")) || 1)),
+    rate: Math.min(CFG.max_rate || 15, Math.max(0.5, parseFloat(v("rate")) || 6)),
+    scopes: v("scopes") || "global", manual: $("manual").value, patterns: v("patterns"),
+    targets: [...ordItems.values()].filter(x => x.cb.checked).map(x => [x.ds, x.sc]),
+    prefixes, probe: $("auto_probe").checked && !probed};
+}
+function validate(action) {
+  const need = ["src_key","src_uni"].concat(action === "discover" ? [] : ["dst_key","dst_uni"]);
+  if (need.some(k => !$(k).value.trim())) { toast("Isi API Key dan Universe ID " + (action === "discover" ? "sumber." : "sumber dan tujuan."), "err"); return false; }
+  for (const k of ["src_uni","dst_uni"]) if ($(k).value.trim() && !/^\d+$/.test($(k).value.trim())) { toast("Universe ID harus angka saja.", "err"); return false; }
+  return true;
+}
+const LABEL = {test:["Mengetes","info","Tes koneksi..."], check:["Mengecek","info","Cek tujuan: membaca balik data dari experience tujuan..."],
+  run:["Berjalan","run",""], discover:["Mencari","info","Discovery Ordered dimulai..."]};
+async function start(action) {
+  if (running || !validate(action)) return;
+  if (action === "run" && !$("dry").checked &&
+      !(await dialog("Konfirmasi", "Dry Run MATI: data akan DITULIS ke universe tujuan.\nLanjutkan?", [["Batal", false], ["Lanjutkan", true, "pri"]]))) return;
+  saveSettings(); lastDry = $("dry").checked;
+  busy(true); const [pl, pc, msg] = LABEL[action]; setPill(pl, pc);
+  if (action === "run") { resetProgress(); setRing(0, ""); writeLog("=== Mulai " + (lastDry ? "(DRY RUN) " : "") + "mode " + MODE_NAMES[mode] + " ===", "ok"); }
+  else writeLog(msg, "info");
+  try {
+    const d = await (await api("/api/jobs", {method: "POST", json: payload(action)})).json();
+    job = d.job; after = 0; pollFail = 0; schedule(0);
+  } catch (e) { busy(false); setPill("Siap"); toast(e.message, "err"); writeLog(e.message, "err"); }
+}
+function schedule(ms) { clearTimeout(pollTimer); pollTimer = setTimeout(poll, ms); }
+async function poll() {
+  if (!job) return;
+  try {
+    const d = await (await api(`/api/jobs/${job}?after=${after}`)).json();
+    pollFail = 0; after = d.next;
+    if (d.state) onState(d.state);
+    d.events.forEach(handle);
+    if (d.finished) { job = null; if (running) { busy(false); setPill("Siap"); } return; }
+    schedule(650);
+  } catch (e) {
+    if (e.status === 404) { writeLog("Pekerjaan hilang dari server (server sempat restart/tidur). Jalankan lagi: yang sudah selesai akan dilewati (resume).", "err"); job = null; busy(false); setPill("Perlu dicek", "warn"); return; }
+    if (++pollFail > 30) { writeLog("Koneksi ke server terputus.", "err"); job = null; busy(false); setPill("Perlu dicek", "warn"); return; }
+    schedule(Math.min(1000 * pollFail, 5000));
+  }
+}
+function handle(ev) {
+  switch (ev.t) {
+    case "log": writeLog(ev.msg, ev.lvl); break;
+    case "phase": $("phase").textContent = `Fase ${ev.i}/${ev.n} • ${ev.name}`; break;
+    case "sub": $("dsname").textContent = `DataStore ${ev.i}/${ev.n}: ${ev.name}`; $("dsbar").style.width = ((ev.i - 1) / Math.max(ev.n, 1) * 100) + "%"; break;
+    case "found": ordAdd(ev.ds, ev.scope, "probe"); break;
+    case "test_done": setPill("Siap"); $("status").textContent = "Tes koneksi selesai."; break;
+    case "check_done": setPill("Siap"); $("status").textContent = "Cek tujuan selesai. Lihat hasilnya di log."; break;
+    case "discover_done": setPill("Siap"); probed = true; $("status").textContent = `Discovery selesai: ${ev.n} ditemukan.`; showPage("ordered"); break;
+    case "done": onDone(ev); break;
+  }
+}
+async function onDone(r) {
+  busy(false); $("dsbar").style.width = "100%";
+  const ok = r.ok; setRing(Number($("pct").textContent.replace("%","")) / 100, ok ? "var(--ok)" : "var(--warn)");
+  if (lastDry && ok) setPill("Simulasi", "info"); else setPill(ok ? "Selesai" : "Perlu dicek", ok ? "ok" : "warn");
+  $("status").textContent = (r.msg || "").split("\n")[0];
+  writeLog(`=== ${r.msg} ===`, ok ? "ok" : "warn");
+  const st = r.stats || {};
+  const detail = `\n\nTertulis ke tujuan: ${st.migrated || 0}\nSimulasi (dibaca saja): ${st.dry || 0}\nSudah ada: ${st.exists || 0}\nResume: ${st.resumed || 0}\nHilang (404): ${st.missing || 0}\nGagal: ${st.failed || 0}\nVerifikasi beda: ${st.verify_fail || 0}\n\nKlik “Unduh hasil” untuk menyimpan backup.`;
+  dialog(ok ? "Selesai" : "Perlu dicek", (r.msg || "") + detail, [["Tutup", true, "pri"]]);
+}
+$("bTest").onclick = () => start("test"); $("bCheck").onclick = () => start("check");
+$("bRun").onclick = () => start("run"); $("bDisc").onclick = () => start("discover");
+$("bStop").onclick = async () => {
+  if (!job) return; $("status").textContent = "Menghentikan... menunggu request berjalan selesai.";
+  try { await api(`/api/jobs/${job}/stop`, {method: "POST"}); } catch (e) { toast(e.message, "err"); }
+};
+addEventListener("beforeunload", e => { if (running) { e.preventDefault(); e.returnValue = ""; } });
+
+/* ---------- init ---------- */
+function renderTutorial(items) {
+  const box = $("tut"); box.replaceChildren();
+  items.forEach(it => {
+    const el = document.createElement(it.kind === "h" ? "h4" : "p"); el.textContent = it.text; box.appendChild(el);
+  });
+}
+loadSettings(); refresh(); ordLabel();
+api("/api/config").then(r => r.json()).then(c => {
+  CFG = c; $("ver").textContent = `v${c.version}  •  Open Cloud v2`; $("ret").textContent = c.retention_hours;
+  renderTutorial(c.tutorial);
+  $("workers").max = c.max_workers; $("rate").max = c.max_rate;
+}).catch(() => { toast("Tidak bisa terhubung ke server API.", "err"); });
+</script>
+</body>
+</html>
